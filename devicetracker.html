@@ -1,0 +1,351 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <title></title>
+    <script src="http://code.jquery.com/jquery-1.8.2.min.js"></script>
+    <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false"></script>
+    <script type="text/javascript">
+
+        var geocoder;
+        var time = new Date().getTime();
+        var browserInfo = {};
+        var Analytics_browser = (function () {
+            if (!browserInfo.browser) {
+
+                browserInfo.browser = {};
+                browserInfo.browser.mozilla = false;
+                browserInfo.browser.webkit = false;
+                browserInfo.browser.opera = false;
+                browserInfo.browser.safari = false;
+                browserInfo.browser.chrome = false;
+                browserInfo.browser.msie = false;
+                browserInfo.browser.android = false;
+                browserInfo.browser.blackberry = false;
+                browserInfo.browser.ios = false;
+                browserInfo.browser.operaMobile = false;
+                browserInfo.browser.windowsMobile = false;
+                browserInfo.browser.mobile = false;
+
+                var nAgt = navigator.userAgent;
+                browserInfo.browser.ua = nAgt;
+
+                browserInfo.browser.name = navigator.appName;
+                browserInfo.browser.fullVersion = '' + parseFloat(navigator.appVersion);
+                browserInfo.browser.majorVersion = parseInt(navigator.appVersion, 10);
+                var nameOffset, verOffset, ix;
+
+                // In Opera, the true version is after "Opera" or after "Version"
+                if ((verOffset = nAgt.indexOf("Opera")) != -1) {
+                    browserInfo.browser.opera = true;
+                    browserInfo.browser.name = "Opera";
+                    browserInfo.browser.fullVersion = nAgt.substring(verOffset + 6);
+                    if ((verOffset = nAgt.indexOf("Version")) != -1)
+                        browserInfo.browser.fullVersion = nAgt.substring(verOffset + 8);
+                }
+
+                    // In MSIE < 11, the true version is after "MSIE" in userAgent
+                else if ((verOffset = nAgt.indexOf("MSIE")) != -1) {
+                    browserInfo.browser.msie = true;
+                    browserInfo.browser.name = "Microsoft Internet Explorer";
+                    browserInfo.browser.fullVersion = nAgt.substring(verOffset + 5);
+                }
+
+                    // In TRIDENT (IE11) => 11, the true version is after "rv:" in userAgent
+                else if (nAgt.indexOf("Trident") != -1) {
+                    browserInfo.browser.msie = true;
+                    browserInfo.browser.name = "Microsoft Internet Explorer";
+                    var start = nAgt.indexOf("rv:") + 3;
+                    var end = start + 4;
+                    browserInfo.browser.fullVersion = nAgt.substring(start, end);
+                }
+
+                    // In Chrome, the true version is after "Chrome"
+                else if ((verOffset = nAgt.indexOf("Chrome")) != -1) {
+                    browserInfo.browser.webkit = true;
+                    browserInfo.browser.chrome = true;
+                    browserInfo.browser.name = "Chrome";
+                    browserInfo.browser.fullVersion = nAgt.substring(verOffset + 7);
+                }
+                    // In Safari, the true version is after "Safari" or after "Version"
+                else if ((verOffset = nAgt.indexOf("Safari")) != -1) {
+                    browserInfo.browser.webkit = true;
+                    browserInfo.browser.safari = true;
+                    browserInfo.browser.name = "Safari";
+                    browserInfo.browser.fullVersion = nAgt.substring(verOffset + 7);
+                    if ((verOffset = nAgt.indexOf("Version")) != -1)
+                        browserInfo.browser.fullVersion = nAgt.substring(verOffset + 8);
+                }
+                    // In Safari, the true version is after "Safari" or after "Version"
+                else if ((verOffset = nAgt.indexOf("AppleWebkit")) != -1) {
+                    browserInfo.browser.webkit = true;
+                    browserInfo.browser.name = "Safari";
+                    browserInfo.browser.fullVersion = nAgt.substring(verOffset + 7);
+                    if ((verOffset = nAgt.indexOf("Version")) != -1)
+                        browserInfo.browser.fullVersion = nAgt.substring(verOffset + 8);
+                }
+                    // In Firefox, the true version is after "Firefox"
+                else if ((verOffset = nAgt.indexOf("Firefox")) != -1) {
+                    browserInfo.browser.mozilla = true;
+                    browserInfo.browser.name = "Firefox";
+                    browserInfo.browser.fullVersion = nAgt.substring(verOffset + 8);
+                }
+                    // In most other browsers, "name/version" is at the end of userAgent
+                else if ((nameOffset = nAgt.lastIndexOf(' ') + 1) < (verOffset = nAgt.lastIndexOf('/'))) {
+                    browserInfo.browser.name = nAgt.substring(nameOffset, verOffset);
+                    browserInfo.browser.fullVersion = nAgt.substring(verOffset + 1);
+                    if (browserInfo.browser.name.toLowerCase() == browserInfo.browser.name.toUpperCase()) {
+                        browserInfo.browser.name = navigator.appName;
+                    }
+                }
+
+                /*Check all mobile environments*/
+                browserInfo.browser.android = (/Android/i).test(nAgt);
+                browserInfo.browser.blackberry = (/BlackBerry/i).test(nAgt);
+                browserInfo.browser.ios = (/iPhone|iPad|iPod/i).test(nAgt);
+                browserInfo.browser.operaMobile = (/Opera Mini/i).test(nAgt);
+                browserInfo.browser.windowsMobile = (/IEMobile/i).test(nAgt);
+                browserInfo.browser.mobile = browserInfo.browser.android || browserInfo.browser.blackberry || browserInfo.browser.ios || browserInfo.browser.windowsMobile || browserInfo.browser.operaMobile;
+
+
+                // trim the fullVersion string at semicolon/space if present
+                if ((ix = browserInfo.browser.fullVersion.indexOf(";")) != -1)
+                    browserInfo.browser.fullVersion = browserInfo.browser.fullVersion.substring(0, ix);
+                if ((ix = browserInfo.browser.fullVersion.indexOf(" ")) != -1)
+                    browserInfo.browser.fullVersion = browserInfo.browser.fullVersion.substring(0, ix);
+
+                browserInfo.browser.majorVersion = parseInt('' + browserInfo.browser.fullVersion, 10);
+                if (isNaN(browserInfo.browser.majorVersion)) {
+                    browserInfo.browser.fullVersion = '' + parseFloat(navigator.appVersion);
+                    browserInfo.browser.majorVersion = parseInt(navigator.appVersion, 10);
+                }
+                browserInfo.browser.version = browserInfo.browser.majorVersion;
+                return browserInfo.browser;
+            }
+            return browserInfo.browser;
+        })();
+        var ajax = function (methodType, url, data, async, success, error) {
+
+            var createCORSRequest = function (method, url, data, async, success, error) {
+
+                var xhr = new XMLHttpRequest();
+                xhr.open(method, url, async);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                if (data)
+                    xhr.send((typeof data === 'object') ? JSON.stringify(data) : data);
+                else
+                    xhr.send();
+                xhr.onload = function (data) { };
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState == 4 && xhr.status == 200) {
+                        var result = $.parseJSON(xhr.responseText);
+                        if ($.isFunction(success)) {
+                            success(result);
+                        }
+                    }
+                }
+            };
+
+            var createXDomianRequest = function () {
+
+                var xdr;
+                if (window.XDomainRequest) {
+                    xdr = new XDomainRequest();
+                    xdr.onerror = err;
+                    xdr.ontimeout = timeo;
+                    xdr.onprogress = progres;
+                    xdr.onload = function () {
+
+                    };
+                    xdr.timeout = tbTO.value;
+                    xdr.open("get", tbURL.value);
+                    xdr.send();
+                }
+            };
+
+            var convertObjectToText = function (obj) {
+                if (typeof obj === 'object') {
+                    var text = null;
+                    for (var x in obj) {
+                        text = text === null ? x + "=" + obj[x] : text + "|" + x + "=" + obj[x];
+                    }
+                    return text;
+                }
+                return null;
+            };
+            var xdr = function (url, method, data, callback, errback) {
+                var xmlReq;
+                var xdrReq;
+                if (XMLHttpRequest) {
+                    xmlReq = new XMLHttpRequest();
+
+                    if ('withCredentials' in xmlReq) {
+                        xmlReq.setRequestHeader("Access-Control-Allow-Credentials", true);
+                        xmlReq.open(method, url, true);
+                        xmlReq.setRequestHeader("Content-Type", "application/json");
+                        xmlReq.onerror = errback;
+                        xmlReq.onreadystatechange = function () {
+                            if (xmlReq.readyState === 4) {
+                                if (xmlReq.status >= 200 && xmlReq.status < 400) {
+                                    callback(xmlReq.responseText);
+                                } else {
+                                    errback(new Error('Response returned with non-OK status'));
+                                }
+                            }
+                        };
+                        if (data)
+                            xmlReq.send((typeof data === 'object') ? JSON.stringify(data) : data);
+                        else
+                            xmlReq.send();
+
+                    }
+                    else
+                        if (XDomainRequest) {
+                            xdrReq = new XDomainRequest();
+                            url = url + "?data=" + convertObjectToText(data);
+                            xdrReq.open(method, url);
+                            xdrReq.onerror = errback;
+                            xdrReq.onload = function () {
+                                callback(xdrReq.responseText);
+                            };
+                            xdrReq.send();
+                        }
+                } else if (XDomainRequest) {
+                    xdrReq = new XDomainRequest();
+                    xdrReq.open(method, url);
+                    xdrReq.onerror = errback;
+                    xdrReq.onload = function () {
+                        callback(xdrReq.responseText);
+                    };
+                    xdrReq.send(JSON.stringify(data));
+                } else {
+                    errback(new Error('CORS not supported'));
+                }
+            };
+
+            var ajaxCall = function (methodType, url, data, async) {
+                if (data) {
+                    return $.ajax({
+                        type: methodType,
+                        url: url,
+                        data: (typeof data === 'object') ? JSON.stringify(data) : data,
+                        async: async,
+                        contentType: 'application/json'
+                    });
+                }
+                else {
+                    return $.ajax({
+                        type: methodType,
+                        url: url,
+                        async: async,
+                        contentType: 'application/json'
+                    });
+                }
+                return Error("Error has occured");
+            };
+            if (Analytics_browser.name === "Microsoft Internet Explorer" && (Analytics_browser.version === 8 || Analytics_browser.version === 9)) {
+                xdr(url, methodType, data, success, error);
+            }
+            else if (Analytics_browser.name === "Microsoft Internet Explorer" && Analytics_browser.version === 10) {
+                try {
+                    ajaxCall(methodType, url, data, async)
+                        .done(function (result) {
+                            if (typeof success === 'function') {
+                                success(result);
+                            }
+                        })
+                        .error(function (jqXHR, textStatus, errorThrown) {
+                            if (typeof error === 'function') {
+                                error(jqXHR, textStatus, errorThrown);
+                            }
+                        });
+                }
+                catch (e) {
+                    try {
+                        xdr(url, methodType, data, success, error);
+                    }
+                    catch (e) {
+                    }
+                }
+            }
+            else {
+                ajaxCall(methodType, url, data, async)
+                    .done(function (result) {
+                        if (typeof success === 'function') {
+                            success(result);
+                        }
+                    })
+                    .error(function (jqXHR, textStatus, errorThrown) {
+                        if (typeof error === 'function') {
+                            error(jqXHR, textStatus, errorThrown);
+                        }
+                    });
+            }
+        };
+        setInterval(function () {
+			var timeoutVal = 10 * 1000 * 1000;
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(successFunction, errorFunction,{ enableHighAccuracy: true, timeout: timeoutVal, maximumAge: 0 });
+            }
+        }, 1000);
+        //Get the latitude and the longitude;
+        function successFunction(position) {
+            var lat = position.coords.latitude;
+            var lng = position.coords.longitude;
+            var details = "latitude:" + lat + " ," + "longitude:" + lng;
+            codeLatLng(lat, lng);
+            document.getElementById("demo").innerHTML = details;
+            var model = {
+                Latitude: lat,
+                Longitude: lng,
+                Accuracy: position.coords.accuracy,
+                Altitude: position.coords.altitude,
+                AltitudeAccuracy: position.coords.altitudeAccuracy,
+                Speed: position.coords.speed
+            };
+            ajax("POST", "http://webapigpstracker.azurewebsites.net/api/v1/device/addlocation", model, true, function (data) {
+                console.log(data);
+            }, function (error) {
+
+            });
+        }
+
+        function errorFunction() {
+            alert("Geocoder failed");
+        }
+
+        function initialize() {
+            geocoder = new google.maps.Geocoder();
+        }
+
+        function codeLatLng(lat, lng) {
+            var latlng = new google.maps.LatLng(lat, lng);
+            geocoder.geocode({ 'latLng': latlng }, function (results, status) {
+                if (status == google.maps.GeocoderStatus.OK) {
+                    //console.log(results)
+                    if (results[1]) {
+                        // alert(results[0].formatted_address)
+                        document.getElementById("demo1").innerHTML = results[0].formatted_address;
+                        //find country name
+                        for (var i = 0; i < results[0].address_components.length; i++) {
+                            for (var b = 0; b < results[0].address_components[i].types.length; b++) {
+                                //there are different types that might hold a city admin_area_lvl_1 usually does in come cases looking for sublocality type will be more appropriate
+                            }
+                        }
+                    } else {
+                        alert("No results found");
+                    }
+                } else {
+                    //alert("Geocoder failed due to: " + status);
+                }
+            });
+        }
+    </script>
+</head>
+<body onload="initialize()">
+    <div id="demo"></div>
+    <br />
+    <div id="demo1"></div>
+</body>
+</html>
